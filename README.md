@@ -1,20 +1,57 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# AgroShield v2 - AI-Powered Agricultural Assistant
 
-This contains everything you need to run your app locally.
+A comprehensive mobile-first web application designed to empower farmers with AI-driven tools for crop health monitoring, weather forecasting, market intelligence, and agricultural news.
 
-View your app in AI Studio: https://ai.studio/apps/3b1a68d3-1c43-4564-b5ed-74dc0347b317
+## 🌾 Overview
 
-## Run Locally
+AgroShield v2 is an intelligent farming companion that leverages cutting-edge AI technology to provide farmers with:
+- **Plant Disease Detection**: Scan crops using your device camera to instantly identify diseases, pests, and nutrient deficiencies
+- **Weather Intelligence**: Hyper-local weather forecasts with farming-specific insights and alerts
+- **Market Prices**: Real-time commodity prices from government and regional markets
+- **Agricultural News**: Curated news and updates from the farming sector
+- **Field Mapping**: Interactive maps for farm management and resource planning
 
-**Prerequisites:**  Node.js
+## ✨ Features
 
+### 📸 Plant Scanner
+- AI-powered disease detection using camera or image upload
+- Identifies plant species, diseases, and pest infestations
+- Provides treatment recommendations and prevention strategies
+- Integrates with Plant.id API for accurate diagnosis
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### ☀️ Weather Dashboard
+- Real-time weather conditions with location detection
+- 7-day forecasts with farming advisories
+- Humidity, wind speed, and temperature monitoring
+- Location-based weather alerts
+
+### 💰 Market Intelligence
+- Live commodity prices from government APIs (data.gov.in)
+- Regional market price comparisons
+- Crop-specific pricing trends
+- Data for major Indian markets
+
+### 📰 Agri News
+- Latest agricultural news and updates
+- Policy changes and government schemes
+- Farming techniques and best practices
+- Market analysis and commodity reports
+
+### 🗺️ Field Map
+- Interactive farm mapping with Leaflet
+- Resource tracking and field management
+- Location-based services for precision farming
+
+### 👤 User Profile
+- Secure authentication with Supabase
+- Personalized dashboard and preferences
+- Usage history and saved scans
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React 19, TypeScript, Tailwind CSS, Vite
+- **Backend**: Express.js, Node.js
+- **AI/ML**: Google Gemini API, Plant.id API
+- **Maps**: Leaflet, React-Leaflet
+- **Data**: Axios, Date-fns, Recharts

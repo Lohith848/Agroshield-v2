@@ -1,0 +1,14 @@
+{
+  "name": "AgroShield AI",
+  "description": "Precision agriculture assistant for farmers: plant disease detection, weather, market prices, and regional maps.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "AI-powered plant disease detection",
+    "Real-time hyper-local weather",
+    "Daily market commodity prices",
+    "Interactive agricultural mapping"
+  ]
+}

@@ -2,12 +2,11 @@
   "version": 2,
   "builds": [
     {
-      "src": "dist/server.cjs",
-      "use": "@vercel/node"
+      "src": "package.json",
+      "use": "@vercel/node",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
     }
-  ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/dist/server.cjs" },
-    { "src": "/(.*)", "dest": "/dist/server.cjs" }
   ]
 }

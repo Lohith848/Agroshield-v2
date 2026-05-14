@@ -71,7 +71,23 @@ app.use((0, import_cors.default)({
 app.options("*", (0, import_cors.default)());
 app.use(import_express.default.json({ limit: "10mb" }));
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
+  const fs = require("fs");
+  const distPath = import_path.default.resolve(process.cwd(), "dist");
+  const exists = fs.existsSync(distPath);
+  res.json({
+    status: "ok",
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    distPath,
+    distExists: exists
+  });
+});
+app.get("/", (_req, res) => {
+  const distPath = import_path.default.resolve(process.cwd(), "dist", "index.html");
+  if (require("fs").existsSync(distPath)) {
+    res.sendFile(distPath);
+  } else {
+    res.status(500).json({ error: "index.html not found" });
+  }
 });
 app.get("/api/weather", async (req, res) => {
   try {
@@ -262,13 +278,26 @@ if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     }
   })();
 } else {
-  const distPath = import_path.default.join(process.cwd(), "dist");
-  app.use(import_express.default.static(distPath));
+  const distPath = import_path.default.resolve(process.cwd(), "dist");
+  if (!require("fs").existsSync(distPath)) {
+    console.error("[Production] dist directory not found at:", distPath);
+  } else {
+    console.log("[Production] Serving from dist:", distPath);
+  }
+  app.use(import_express.default.static(distPath, {
+    maxAge: "1d",
+    etag: true
+  }));
   app.get("*", (req, res) => {
     if (req.path.startsWith("/api/")) {
       return res.status(404).json({ error: "API endpoint not found" });
     }
-    res.sendFile(import_path.default.join(distPath, "index.html"));
+    res.sendFile(import_path.default.join(distPath, "index.html"), (err) => {
+      if (err) {
+        console.error("[Production] Error serving index.html:", err);
+        res.status(500).send("Server Error");
+      }
+    });
   });
 }
 var server_default = app;

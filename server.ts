@@ -58,7 +58,25 @@ app.use(express.json({ limit: '10mb' }));
 
 // Health check endpoint
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  const fs = require('fs');
+  const distPath = path.resolve(process.cwd(), "dist");
+  const exists = fs.existsSync(distPath);
+  res.json({ 
+    status: "ok", 
+    timestamp: new Date().toISOString(),
+    distPath,
+    distExists: exists 
+  });
+});
+
+// Root endpoint
+app.get("/", (_req, res) => {
+  const distPath = path.resolve(process.cwd(), "dist", "index.html");
+  if (require('fs').existsSync(distPath)) {
+    res.sendFile(distPath);
+  } else {
+    res.status(500).json({ error: "index.html not found" });
+  }
 });
 
 // API Routes...
@@ -283,15 +301,32 @@ if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
   })();
 } else {
   // Production: serve static files
-  const distPath = path.join(process.cwd(), "dist");
-  app.use(express.static(distPath));
+  const distPath = path.resolve(process.cwd(), "dist");
+  
+  // Verify dist path exists
+  if (!require('fs').existsSync(distPath)) {
+    console.error("[Production] dist directory not found at:", distPath);
+  } else {
+    console.log("[Production] Serving from dist:", distPath);
+  }
+  
+  // Serve static files with caching headers
+  app.use(express.static(distPath, {
+    maxAge: '1d',
+    etag: true,
+  }));
 
   // SPA fallback - all non-API routes return index.html
   app.get("*", (req, res) => {
     if (req.path.startsWith("/api/")) {
       return res.status(404).json({ error: "API endpoint not found" });
     }
-    res.sendFile(path.join(distPath, "index.html"));
+    res.sendFile(path.join(distPath, "index.html"), err => {
+      if (err) {
+        console.error("[Production] Error serving index.html:", err);
+        res.status(500).send("Server Error");
+      }
+    });
   });
 }
 

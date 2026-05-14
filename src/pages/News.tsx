@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Newspaper, ExternalLink, Calendar, Share2, Bookmark } from "lucide-react";
+import { Newspaper, ExternalLink, Calendar, Share2, Bookmark, AlertTriangle } from "lucide-react";
 import { motion } from "motion/react";
 import axios from "axios";
 import { type NewsArticle } from "@/types";
@@ -8,18 +8,24 @@ import { format } from "date-fns";
 export default function News() {
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [setupInfo, setSetupInfo] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchNews = async () => {
+      setLoading(true);
+      setError(null);
+      setSetupInfo(null);
       try {
-        const response = await axios.get("/api/news");
+        const response = await axios.get("/api/news", { timeout: 10000 });
         setNews(response.data.articles || []);
       } catch (err: any) {
+        console.error("News fetch error:", err);
         if (err.response?.status === 401) {
           setSetupInfo(err.response.data.setupInstructions);
+        } else {
+          setError(err.response?.data?.error || "Failed to load news. Please try again.");
         }
-        console.error("News fetch error:", err);
       } finally {
         setLoading(false);
       }
@@ -44,13 +50,24 @@ export default function News() {
             </div>
           ))}
         </div>
-      ) : setupInfo ? (
-        <div className="p-8 text-center bg-gray-50 rounded-3xl border border-gray-100 border-dashed">
-          <Newspaper className="mx-auto text-gray-300 mb-4" size={48} />
-          <h3 className="font-bold text-gray-900 mb-2">Setup News</h3>
-          <p className="text-gray-500 text-sm mb-4 leading-relaxed">{setupInfo}</p>
-        </div>
-      ) : (
+       ) : setupInfo ? (
+         <div className="p-8 text-center bg-gray-50 rounded-3xl border border-gray-100 border-dashed">
+           <Newspaper className="mx-auto text-gray-300 mb-4" size={48} />
+           <h3 className="font-bold text-gray-900 mb-2">Setup News</h3>
+           <p className="text-gray-500 text-sm mb-4 leading-relaxed">{setupInfo}</p>
+         </div>
+       ) : error ? (
+         <div className="p-6 bg-red-50 border border-red-100 rounded-3xl text-center">
+           <AlertTriangle className="mx-auto text-red-500 mb-3" size={32} />
+           <p className="text-red-800 text-sm">{error}</p>
+           <button
+             onClick={() => window.location.reload()}
+             className="mt-4 px-4 py-2 bg-white border border-red-200 text-red-800 rounded-xl text-xs font-semibold"
+           >
+             Retry
+           </button>
+         </div>
+       ) : (
         <div className="space-y-8">
           {news.map((item, idx) => (
             <motion.article 

@@ -9,19 +9,23 @@ export default function Weather() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchWeather = async (lat?: number, lon?: number) => {
-    setLoading(true);
-    try {
-      // Default to Delhi if no coordinates
-      const response = await axios.get(`/api/weather?lat=${lat || 28.6139}&lon=${lon || 77.2090}`);
-      setWeather(response.data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Could not fetch weather. Please check API configuration.");
-    } finally {
-      setLoading(false);
-    }
-  };
+   const fetchWeather = async (lat?: number, lon?: number) => {
+     setLoading(true);
+     setError(null);
+     try {
+       // Default to Delhi if no coordinates
+       const response = await axios.get(`/api/weather`, {
+         params: { lat: lat || 28.6139, lon: lon || 77.2090 },
+         timeout: 10000
+       });
+       setWeather(response.data);
+     } catch (err: any) {
+       console.error("Weather fetch error:", err);
+       setError(err.response?.data?.error || "Could not fetch weather. Check your connection.");
+     } finally {
+       setLoading(false);
+     }
+   };
 
   useEffect(() => {
     if ("geolocation" in navigator) {

@@ -34,7 +34,7 @@ export default function Scanner() {
       // 1. Try Plant.id API via our proxy
       const response = await axios.post("/api/scan", {
         image: image,
-      });
+      }, { timeout: 30000 }); // 30s for image upload + analysis
 
       const data = response.data;
 
@@ -83,7 +83,7 @@ export default function Scanner() {
     try {
       const response = await axios.post("/api/claude-analyze", {
         image: image,
-      });
+      }, { timeout: 30000 });
 
       const data = response.data;
       if (data.result) {
@@ -93,9 +93,11 @@ export default function Scanner() {
       }
     } catch (err: any) {
       if (err.response?.status === 401) {
-        setError(err.response.data.setupInstructions || "Anthropic API key missing. Check your .env file.");
+        setError(err.response.data.setupInstructions || "API key missing. Check configuration.");
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError("Request timed out. Please check your connection and try again.");
       } else {
-        setError("Analysis failed. Both Plant.id and Claude APIs are unavailable.");
+        setError("Analysis failed. Please try again with a clearer image.");
       }
     }
   };

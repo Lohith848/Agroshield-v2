@@ -4,60 +4,94 @@ import { createServer as createViteServer } from "vite";
 import axios from "axios";
 import dotenv from "dotenv";
 import { Anthropic } from "@anthropic-ai/sdk";
+import cors from "cors";
 
 dotenv.config();
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null;
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
+
+  // CORS: Allow all origins for mobile app access
+  app.use(cors({
+    origin: true,
+    credentials: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  }));
 
   app.use(express.json({ limit: '10mb' }));
 
   // API Routes
   
-  // 1. Weather API Proxy
-  app.get("/api/weather", async (req, res) => {
-    try {
-      const { lat, lon } = req.query;
-      const apiKey = process.env.OPENWEATHER_API_KEY;
-      
-      if (!apiKey) {
-        return res.status(500).json({ error: "OpenWeather API key missing" });
-      }
+   // 1. Weather API Proxy
+   app.get("/api/weather", async (req, res) => {
+     try {
+       const { lat, lon } = req.query;
+       const apiKey = process.env.OPENWEATHER_API_KEY;
 
-      const response = await axios.get(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`
-      );
-      res.json(response.data);
-    } catch (error: any) {
-      res.status(error.response?.status || 500).json({ error: error.message });
-    }
-  });
+       if (!apiKey) {
+         return res.status(500).json({ error: "Weather API key missing" });
+       }
 
-  // 2. Agricultural News Proxy
-  app.get("/api/news", async (req, res) => {
-    try {
-      const apiKey = process.env.NEWS_API_KEY;
-      if (!apiKey) {
-        return res.status(401).json({ 
-          error: "News API key missing", 
-          setupInstructions: "Please set NEWS_API_KEY in the AI Studio Secrets panel. You can get a free key from newsapi.org." 
-        });
-      }
+       if (!lat || !lon) {
+         return res.status(400).json({ error: "Coordinates required" });
+       }
 
-      const response = await axios.get(
-        `https://newsapi.org/v2/everything?q=agriculture+farming+india&sortBy=publishedAt&language=en&apiKey=${apiKey}`
-      );
-      res.json(response.data);
-    } catch (error: any) {
-      console.error("News API Error:", error.message);
-      res.status(error.response?.status || 500).json({ error: "Failed to fetch news. Check your API key." });
-    }
-  });
+       const response = await axios.get(
+         `https://api.openweathermap.org/data/2.5/weather`,
+         {
+           params: { lat, lon, appid: apiKey, units: "metric" },
+           timeout: 8000
+         }
+       );
+       res.json(response.data);
+     } catch (error: any) {
+       console.error("Weather API Error:", error.message);
+       const status = error.response?.status || 500;
+       res.status(status).json({
+         error: error.response?.data?.message || "Failed to fetch weather"
+       });
+     }
+   });
+
+   // 2. Agricultural News Proxy
+   app.get("/api/news", async (req, res) => {
+     try {
+       const apiKey = process.env.NEWS_API_KEY;
+       if (!apiKey) {
+         return res.status(401).json({
+           error: "News API key missing",
+           setupInstructions: "Please set NEWS_API_KEY in environment variables."
+         });
+       }
+
+       const response = await axios.get(
+         "https://newsapi.org/v2/everything",
+         {
+           params: {
+             q: "agriculture+farming+india",
+             sortBy: "publishedAt",
+             language: "en",
+             apiKey: apiKey,
+             pageSize: 10
+           },
+           timeout: 8000
+         }
+       );
+       res.json(response.data);
+     } catch (error: any) {
+       console.error("News API Error:", error.message);
+       const status = error.response?.status || 500;
+       res.status(status).json({
+         error: error.response?.data?.message || "Failed to fetch news"
+       });
+     }
+   });
 
    // 3. Market Prices Proxy (Data.gov.in)
    app.get("/api/prices", async (req, res) => {
@@ -66,14 +100,19 @@ async function startServer() {
        if (!apiKey) {
          return res.status(401).json({
            error: "Govt Agri API key missing",
-           setupInstructions: "Please set GOVT_AGRI_API_KEY in the AI Studio Secrets panel."
+           setupInstructions: "Please set GOVT_AGRI_API_KEY in environment variables."
          });
        }
 
        const response = await axios.get(
-         `https://api.data.gov.in/resource/9ef273e5-bf72-4aff-b5a8-20673033605b?api-key=${apiKey}&format=json&limit=10`,
+         "https://api.data.gov.in/resource/9ef273e5-bf72-4aff-b5a8-20673033605b",
          {
-           timeout: 5000,
+           params: {
+             "api-key": apiKey,
+             format: "json",
+             limit: 10
+           },
+           timeout: 8000,
            headers: {
              "Accept": "application/json",
              "User-Agent": "AgroShieldApp/2.0"
@@ -83,7 +122,7 @@ async function startServer() {
 
        const data = response.data;
 
-       // Data.gov.in returns { count, records } - map to our MarketPrice interface
+       // Normalize response
        const rawRecords = Array.isArray(data?.records) ? data.records : [];
 
        const records = rawRecords.map((item: any) => ({
@@ -98,16 +137,14 @@ async function startServer() {
          max_price: String(item.max_price || item.maxPrice || item.max_rate || "0"),
        }));
 
-       // If API returned no records, trigger fallback
        if (records.length === 0) {
-         throw new Error("No records available from API");
+         throw new Error("No records available");
        }
 
        res.json({ records, isFallback: false });
      } catch (error: any) {
        console.error("Market API Error:", error.message);
 
-       // Fallback Data for professional look when API is down/403/empty
        const fallbackRecords = [
          { commodity: "Tomato", market: "Azadpur", district: "Delhi", state: "Delhi", modal_price: "2400", arrival_date: "13/05/2026", variety: "Hybrid", min_price: "2000", max_price: "2800" },
          { commodity: "Potato", market: "Kolkata", district: "Kolkata", state: "West Bengal", modal_price: "1200", arrival_date: "13/05/2026", variety: "Desi", min_price: "1000", max_price: "1400" },
@@ -118,7 +155,7 @@ async function startServer() {
        res.json({
          records: fallbackRecords,
          isFallback: true,
-         message: "Live server busy. Showing latest regional averages."
+         message: "Live server busy. Showing regional averages."
        });
      }
    });
@@ -126,14 +163,16 @@ async function startServer() {
   // 5. Claude Vision Fallback Proxy
   app.post("/api/claude-analyze", async (req, res) => {
     try {
-      const { image } = req.body;
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-
-      if (!apiKey) {
-        return res.status(401).json({
-          error: "Anthropic API key missing",
-          setupInstructions: "Set ANTHROPIC_API_KEY in your environment variables. Get one at console.anthropic.com"
+      if (!anthropic) {
+        return res.status(501).json({
+          error: "Claude API not configured",
+          setupInstructions: "ANTHROPIC_API_KEY missing. Add it to your .env file or Vercel Secrets."
         });
+      }
+
+      const { image } = req.body;
+      if (!image) {
+        return res.status(400).json({ error: "No image provided" });
       }
 
       // Extract base64 data from data URL

@@ -12,14 +12,17 @@ export default function Market() {
 
   useEffect(() => {
     const fetchPrices = async () => {
+      setLoading(true);
+      setError(null);
+      setSetupInfo(null);
       try {
-        const response = await axios.get("/api/prices");
+        const response = await axios.get("/api/prices", { timeout: 10000 });
         setPrices(response.data.records || []);
       } catch (err: any) {
         if (err.response?.status === 401) {
           setSetupInfo(err.response.data.setupInstructions);
         } else {
-          setError("Failed to load market data. Please try again later.");
+          setError("Failed to load market data. Please try again.");
         }
       } finally {
         setLoading(false);

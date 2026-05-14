@@ -1,11 +1,7 @@
 import { useState, useRef } from "react";
-import { Camera, Upload, X, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { Camera, X, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { cn } from "@/lib/utils";
 import axios from "axios";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export default function Scanner() {
   const [image, setImage] = useState<string | null>(null);
@@ -36,27 +32,27 @@ export default function Scanner() {
 
     try {
       // 1. Try Plant.id API via our proxy
-      const response = await axios.post("/api/scan", { 
-        image: image 
+      const response = await axios.post("/api/scan", {
+        image: image,
       });
 
       const data = response.data;
-      
+
       if (data.result?.is_plant?.probability > 0.6) {
         const isHealthy = data.result.is_healthy?.probability > 0.7;
         const healthDetermination = data.result.disease_determination;
         const suggestions = healthDetermination?.suggestions || [];
-        
+
         let report = `Status: ${isHealthy ? "Healthy" : "Infected"}\n\n`;
         report += `Common Name: ${data.result.classification?.suggestions?.[0]?.name || "Unknown Plant"}\n\n`;
-        
+
         if (suggestions.length > 0) {
           report += `Top Detection: ${suggestions[0].name} (${Math.round(suggestions[0].probability * 100)}% confidence)\n\n`;
-          
+
           if (suggestions[0].details?.description) {
             report += `Description: ${suggestions[0].details.description}\n\n`;
           }
-          
+
           if (suggestions[0].details?.treatment) {
             const treatment = suggestions[0].details.treatment;
             report += `Treatment:\n`;
@@ -65,49 +61,42 @@ export default function Scanner() {
             if (treatment.prevention) report += `• Prevention: ${treatment.prevention.join(", ")}\n`;
           }
         }
-        
+
         setResult(report);
       } else {
-        // Fallback to Gemini if it's not detected as a plant by Plant.id
-        await analyzeWithGemini();
+        // Fallback to Claude if it's not detected as a plant by Plant.id
+        await analyzeWithClaude();
       }
     } catch (err: any) {
       if (err.response?.status === 401) {
-        setError(err.response.data.setupInstructions);
+        setError(err.response.data.setupInstructions || "PlantID API key missing. Check configuration.");
       } else {
-        // Try Gemini as total fallback
-        await analyzeWithGemini();
+        // Try Claude as total fallback
+        await analyzeWithClaude();
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const analyzeWithGemini = async () => {
+  const analyzeWithClaude = async () => {
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
-        throw new Error("Gemini fallback also failed: No API key.");
+      const response = await axios.post("/api/claude-analyze", {
+        image: image,
+      });
+
+      const data = response.data;
+      if (data.result) {
+        setResult(data.result);
+      } else {
+        throw new Error("No result from Claude");
       }
-
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const base64Data = image!.split(",")[1];
-      
-      const prompt = `Analyze this plant for diseases. 
-      Status: [Healthy/Infected]
-      Plant Name:
-      Disease/Pest:
-      Treatment:
-      Prevention:`;
-
-      const result = await model.generateContent([
-        prompt,
-        { inlineData: { data: base64Data, mimeType: "image/jpeg" } },
-      ]);
-
-      setResult(result.response.text());
     } catch (err: any) {
-      setError("Analysis failed. Please check your API keys in the Secrets panel.");
+      if (err.response?.status === 401) {
+        setError(err.response.data.setupInstructions || "Anthropic API key missing. Check your .env file.");
+      } else {
+        setError("Analysis failed. Both Plant.id and Claude APIs are unavailable.");
+      }
     }
   };
 
@@ -122,7 +111,7 @@ export default function Scanner() {
       <div className="relative aspect-square w-full rounded-3xl overflow-hidden bg-gray-100 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center mb-6">
         <AnimatePresence mode="wait">
           {image ? (
-            <motion.div 
+            <motion.div
               key="preview"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -130,7 +119,7 @@ export default function Scanner() {
               className="relative w-full h-full"
             >
               <img src={image} alt="Crop" className="w-full h-full object-cover" />
-              <button 
+              <button
                 onClick={() => setImage(null)}
                 className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full backdrop-blur-sm"
               >
@@ -138,7 +127,7 @@ export default function Scanner() {
               </button>
             </motion.div>
           ) : (
-            <motion.div 
+            <motion.div
               key="upload"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -152,7 +141,7 @@ export default function Scanner() {
                 <p className="font-semibold text-gray-900">Take a photo</p>
                 <p className="text-xs text-gray-400 mt-1">Focus on the leaves or affected area</p>
               </div>
-              <button 
+              <button
                 onClick={() => fileInputRef.current?.click()}
                 className="mt-2 text-sm font-medium text-green-600 underline"
               >
@@ -163,9 +152,9 @@ export default function Scanner() {
         </AnimatePresence>
       </div>
 
-      <input 
-        type="file" 
-        accept="image/*" 
+      <input
+        type="file"
+        accept="image/*"
         capture="environment"
         ref={fileInputRef}
         className="hidden"
@@ -175,7 +164,7 @@ export default function Scanner() {
       {/* Action Buttons */}
       <div className="space-y-3">
         {!result && image && (
-          <button 
+          <button
             disabled={loading}
             onClick={analyzeImage}
             className="w-full h-14 bg-green-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg shadow-green-600/20 active:scale-95 transition-all disabled:opacity-50"
@@ -184,9 +173,9 @@ export default function Scanner() {
             {loading ? "Analyzing..." : "Start Analysis"}
           </button>
         )}
-        
+
         {!image && (
-          <button 
+          <button
             onClick={() => fileInputRef.current?.click()}
             className="w-full h-14 bg-green-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg shadow-green-600/20 active:scale-95 transition-all"
           >
@@ -196,7 +185,7 @@ export default function Scanner() {
         )}
 
         {result && (
-          <button 
+          <button
             onClick={() => { setImage(null); setResult(null); }}
             className="w-full h-14 bg-gray-900 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-3 active:scale-95 transition-all"
           >
@@ -209,7 +198,7 @@ export default function Scanner() {
       {/* Analysis Result */}
       <AnimatePresence>
         {loading && !result && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="mt-8 p-6 bg-white border border-gray-100 rounded-3xl shadow-sm space-y-4"
@@ -219,7 +208,7 @@ export default function Scanner() {
                 <RefreshCw className="animate-spin text-green-600" size={18} />
               </div>
               <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-                <motion.div 
+                <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: "100%" }}
                   transition={{ duration: 15 }}
@@ -232,7 +221,7 @@ export default function Scanner() {
         )}
 
         {error && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="mt-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex gap-3 items-start"
@@ -243,7 +232,7 @@ export default function Scanner() {
         )}
 
         {result && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="mt-8 bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm"

@@ -4,7 +4,6 @@ import axios from "axios";
 import dotenv from "dotenv";
 import { Anthropic } from "@anthropic-ai/sdk";
 import cors from "cors";
-import vercel from "@vercel/express";
 
 dotenv.config();
 
@@ -292,18 +291,18 @@ Always include:
 
 // Vite middleware for development
 if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
-(async () => {
-      try {
-        const { createServer: createViteServer } = await import("vite");
-        const vite = await createViteServer({
-         server: { middlewareMode: true },
-         appType: "spa",
-       });
-       app.use(vite.middlewares);
-     } catch (error) {
-       console.error("Failed to start Vite dev server:", error);
-     }
-   })();
+  (async () => {
+       try {
+         const { createServer: createViteServer } = await import("vite");
+         const vite = await createViteServer({
+          server: { middlewareMode: true },
+          appType: "spa",
+        });
+        app.use(vite.middlewares);
+      } catch (error) {
+        console.error("Failed to start Vite dev server:", error);
+      }
+    })();
 } else {
   // Production: serve static files
   const distPath = path.resolve(process.cwd(), "dist");
@@ -336,8 +335,8 @@ if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
   });
 }
 
-// Vercel serverless handler
-export default vercel(app);
+// Export for Vercel serverless functions
+export default app;
 
 // Only start server if running directly (not in Vercel)
 if (!process.env.VERCEL) {

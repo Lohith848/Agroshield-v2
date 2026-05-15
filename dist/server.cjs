@@ -38,6 +38,7 @@ var import_axios = __toESM(require("axios"), 1);
 var import_dotenv = __toESM(require("dotenv"), 1);
 var import_sdk = require("@anthropic-ai/sdk");
 var import_cors = __toESM(require("cors"), 1);
+var import_express2 = __toESM(require("@vercel/express"), 1);
 import_dotenv.default.config();
 var requiredEnvVars = {
   GOVT_AGRI_API_KEY: process.env.GOVT_AGRI_API_KEY,
@@ -73,8 +74,8 @@ app.use((0, import_cors.default)({
 }));
 app.options("*", (0, import_cors.default)());
 app.use(import_express.default.json({ limit: "10mb" }));
-app.get("/health", (_req, res) => {
-  const fs = require("fs");
+app.get("/health", async (_req, res) => {
+  const fs = await import("fs");
   const distPath = import_path.default.resolve(process.cwd(), "dist");
   const exists = fs.existsSync(distPath);
   res.json({
@@ -86,7 +87,8 @@ app.get("/health", (_req, res) => {
 });
 app.get("/", (_req, res) => {
   const distPath = import_path.default.resolve(process.cwd(), "dist", "index.html");
-  if (require("fs").existsSync(distPath)) {
+  const fs = require("fs");
+  if (fs.existsSync(distPath)) {
     res.sendFile(distPath);
   } else {
     res.status(500).json({ error: "index.html not found" });
@@ -283,7 +285,8 @@ if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
   })();
 } else {
   const distPath = import_path.default.resolve(process.cwd(), "dist");
-  if (!require("fs").existsSync(distPath)) {
+  const fs = require("fs");
+  if (!fs.existsSync(distPath)) {
     console.error("[Production] dist directory not found at:", distPath);
   } else {
     console.log("[Production] Serving from dist:", distPath);
@@ -304,7 +307,7 @@ if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     });
   });
 }
-var server_default = app;
+var server_default = (0, import_express2.default)(app);
 if (!process.env.VERCEL) {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`AgroShield Server running on http://localhost:${PORT}`);

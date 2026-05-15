@@ -4,6 +4,7 @@ import axios from "axios";
 import dotenv from "dotenv";
 import { Anthropic } from "@anthropic-ai/sdk";
 import cors from "cors";
+import vercel from "@vercel/express";
 
 dotenv.config();
 
@@ -59,8 +60,8 @@ app.options("*", cors());
 app.use(express.json({ limit: '10mb' }));
 
 // Health check endpoint
-app.get("/health", (_req, res) => {
-  const fs = require('fs');
+app.get("/health", async (_req, res) => {
+  const fs = await import('fs');
   const distPath = path.resolve(process.cwd(), "dist");
   const exists = fs.existsSync(distPath);
   res.json({ 
@@ -74,7 +75,8 @@ app.get("/health", (_req, res) => {
 // Root endpoint
 app.get("/", (_req, res) => {
   const distPath = path.resolve(process.cwd(), "dist", "index.html");
-  if (require('fs').existsSync(distPath)) {
+  const fs = require('fs');
+  if (fs.existsSync(distPath)) {
     res.sendFile(distPath);
   } else {
     res.status(500).json({ error: "index.html not found" });
@@ -291,27 +293,28 @@ Always include:
 // Vite middleware for development
 if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
 (async () => {
-     try {
-       const { createServer: createViteServer } = await import("vite");
-       const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: "spa",
-      });
-      app.use(vite.middlewares);
-    } catch (error) {
-      console.error("Failed to start Vite dev server:", error);
-    }
-  })();
+      try {
+        const { createServer: createViteServer } = await import("vite");
+        const vite = await createViteServer({
+         server: { middlewareMode: true },
+         appType: "spa",
+       });
+       app.use(vite.middlewares);
+     } catch (error) {
+       console.error("Failed to start Vite dev server:", error);
+     }
+   })();
 } else {
   // Production: serve static files
   const distPath = path.resolve(process.cwd(), "dist");
   
-  // Verify dist path exists
-  if (!require('fs').existsSync(distPath)) {
-    console.error("[Production] dist directory not found at:", distPath);
-  } else {
-    console.log("[Production] Serving from dist:", distPath);
-  }
+   // Verify dist path exists
+   const fs = require('fs');
+   if (!fs.existsSync(distPath)) {
+     console.error("[Production] dist directory not found at:", distPath);
+   } else {
+     console.log("[Production] Serving from dist:", distPath);
+   }
   
   // Serve static files with caching headers
   app.use(express.static(distPath, {
@@ -333,8 +336,8 @@ if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
   });
 }
 
-// Export for Vercel serverless functions
-export default app;
+// Vercel serverless handler
+export default vercel(app);
 
 // Only start server if running directly (not in Vercel)
 if (!process.env.VERCEL) {

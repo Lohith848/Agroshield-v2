@@ -1,5 +1,4 @@
-
-# AgroShield v2 - AI-Powered Agricultural Assistant
+# AgroShield v2 - AI-Powered Agricultural Assistant.
 
 A comprehensive mobile-first web application designed to empower farmers with AI-driven tools for crop health monitoring, weather forecasting, market intelligence, and agricultural news.
 
@@ -55,3 +54,10 @@ AgroShield v2 is an intelligent farming companion that leverages cutting-edge AI
 - **AI/ML**: Google Gemini API, Plant.id API
 - **Maps**: Leaflet, React-Leaflet
 - **Data**: Axios, Date-fns, Recharts
+
+
+---
+
+## Author 
+
+Made by Lohith G.
